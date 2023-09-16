@@ -1,0 +1,60 @@
+import discord
+import openai
+import os
+import sys
+from replit import db
+
+intents = discord.Intents.default()
+intents.message_content = True
+
+client=discord.Client(intents=intents)
+
+content="You will now act as 1 sentence Youtube comment bot. Your comment must be approximately 14 characters long. You should write ruthless, little humorous, informal Korean comment, applying the monotonous tone used on Korean internet community and Youtube. When the viewer gives you an order, you should obey it succinctly. Use lately new-coined words and swear words in Korean. If someone asks you a question or compliments you, answer ruthlessly but positively. If the context of your comment is awkward, write something more appropriate."
+
+db['History']=[{"role":"system", "content":content}]
+
+#print(db['History'])
+
+messages=[]
+for data in db['History'].value:
+  messages.append(data.value)
+
+openai.api_key = os.environ['OPENAI_API_KEY']
+
+def Response(question):
+  messages=[{"role":"system", "content":content}]
+  try:
+    user = {"role":"user", "content":str(question)}
+    messages.append(user)
+    response = openai.ChatCompletion.create(
+  model="gpt-4", #"3.5-turbo",
+  messages=messages,
+  temperature = 0.141592 #모델의 응답 다양성 0.5 이상 금지
+)
+
+    reply = response["choices"][0]["message"]["content"]
+    assistant =  {"role":"assistant", "content":reply}
+    messages.append(assistant)
+
+    db['History']=messages
+  
+    return reply
+
+  except Exception as e:
+    print(e)
+    return "Error"
+
+@client.event
+async def on_ready():
+  print('We have logged in as {0.user}'.format(client))
+
+@client.event
+async def on_message(message):
+  try:
+    if message.content.startswith('$'):
+      reply = Response(message.content.replace('$', ''))
+      await message.channel.send(reply)
+  except Exception as e:
+    print('Error', e)
+      
+client.run(os.getenv('TOKEN'))
